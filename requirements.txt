@@ -1,0 +1,5 @@
+mss
+keyboard
+Pillow
+pywin32
+opencv-python
