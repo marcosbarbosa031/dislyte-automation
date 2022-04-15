@@ -35,11 +35,14 @@ battle_btn = cv2.imread('assets/battle_btn.png')
 challenge_btn = cv2.imread('assets/challenge_btn.png')
 confirm_btn = cv2.imread('assets/confirm_btn.png')
 leave_btn = cv2.imread('assets/leave_btn.png')
+retry_btn = cv2.imread('assets/retry_btn.png')
 not_now_btn = cv2.imread('assets/not_now_btn.png')
 ripple_dimension_dhalia_btn = cv2.imread(
     'assets/ripple_dimension_dhalia_btn.png')
 ripple_dimension_ye_suhua_btn = cv2.imread(
     'assets/ripple_dimension_ye_suhua_btn.png')
+ripple_dimension_ye_suhua_alt_btn = cv2.imread(
+    'assets/ripple_dimension_ye_suhua_alt_btn.png')
 
 # Game state
 
@@ -198,7 +201,7 @@ def find_and_click_img(state):
     if is_accuracy_above_threshold(max_val, threshold):
         click_img_on_window(img, max_loc)
         update_state(state)
-        open_image('Dislyte', nox_player_img)
+        # open_image('Dislyte', nox_player_img)
 
 # Update game state
 
@@ -269,6 +272,10 @@ class GAME_STATES_TEST(Enum):
         'name': 'Dhalia', 'img': ripple_dimension_dhalia_btn, 'threshold': OK_THRESHOLD}
     RIPPLE_DIMENSION_SUHUA = {
         'name': 'Ye Suhua', 'img': ripple_dimension_ye_suhua_btn, 'threshold': OK_THRESHOLD}
+    RIPPLE_DIMENSION_SUHUA_CHAT = {
+        'name': 'Ye Suhua Chat', 'img': ripple_dimension_ye_suhua_alt_btn, 'threshold': OK_THRESHOLD}
+    RETRY_BATTLE = {'name': 'Retry Battle',
+                    'img': retry_btn, 'threshold': OK_THRESHOLD}
 
 
 while True:
@@ -281,7 +288,7 @@ while True:
         if state.value is not None:
             find_and_click_img(state)
 
-    # open_image('Dislyte', nox_player_img)
+    open_image('Dislyte', nox_player_img)
 
     # if keyboard.is_pressed('c'):
     #     break
