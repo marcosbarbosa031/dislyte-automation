@@ -288,7 +288,7 @@ while True:
         if state.value is not None:
             find_and_click_img(state)
 
-    open_image('Dislyte', nox_player_img)
+    # open_image('Dislyte', nox_player_img)
 
     # if keyboard.is_pressed('c'):
     #     break
