@@ -6,6 +6,7 @@ import win32gui
 import win32con
 import numpy as np
 from time import time
+from time import sleep
 from enum import Enum
 
 sct = mss.mss()
@@ -15,12 +16,8 @@ fps_time = time()
 nox_window = None
 
 # Threshold
-AUTO_THRESHOLD = .80
-OK_THRESHOLD = .75
-CONTINUE_THRESHOLD = .80
-RETRY_THRESHOLD = .80
-SKIP_THRESHOLD = .80
-UPDATE_LIST_THRESHOLD = .99
+DEFAULT_THRESHOLD = .80
+AUTO_THRESHOLD = .90
 
 # Box Drawing
 BOX_COLOR = (0, 255, 0)
@@ -37,6 +34,7 @@ confirm_btn = cv2.imread('assets/confirm_btn.png')
 leave_btn = cv2.imread('assets/leave_btn.png')
 retry_btn = cv2.imread('assets/retry_btn.png')
 not_now_btn = cv2.imread('assets/not_now_btn.png')
+unread_btn = cv2.imread('assets/unread_btn.png')
 tap_to_continue_btn = cv2.imread('assets/tap_to_continue_btn.png')
 ripple_dimension_dhalia_btn = cv2.imread(
     'assets/ripple_dimension_dhalia_btn.png')
@@ -49,27 +47,65 @@ ripple_dimension_ye_suhua_alt_btn = cv2.imread(
 
 # Game state
 
+esper_name = ''
 
-class GAME_STATES(Enum):
-    BOT_STARTED = None
-    FIND_RIPPLE_DIMENSION = {'name': 'Finding Ripple Dimension', 'buttons': [
-        {'img': ripple_dimension_dhalia_btn, 'threshold': AUTO_THRESHOLD},
-        {'img': ripple_dimension_ye_suhua_btn, 'threshold': AUTO_THRESHOLD}
+
+class RIPPLE_DIMENSION_STATE(Enum):
+    FIND_RIPPLE_DIMENSION = {'name': 'FIND_RIPPLE_DIMENSION', 'buttons': [
+        {'img': ripple_dimension_dhalia_btn, 'name': 'Ripple Dimension Dhalia',
+            'threshold': DEFAULT_THRESHOLD, 'next': 'RIPPLE_DIMENSION_FOUND', 'esper': 'Dhalia', 'delay': None},
+        {'img': ripple_dimension_dhalia_alt_btn, 'name': 'Ripple Dimension Dhalia Share',
+            'threshold': DEFAULT_THRESHOLD, 'next': 'RIPPLE_DIMENSION_FOUND', 'esper': 'Dhalia', 'delay': None},
+        {'img': ripple_dimension_ye_suhua_btn, 'name': 'Ripple Dimension Ye Suhua',
+            'threshold': DEFAULT_THRESHOLD, 'next': 'RIPPLE_DIMENSION_FOUND', 'esper': 'Ye Suhua', 'delay': None},
+        {'img': ripple_dimension_ye_suhua_alt_btn, 'name': 'Ripple Dimension Ye Suhua Share',
+            'threshold': DEFAULT_THRESHOLD, 'next': 'RIPPLE_DIMENSION_FOUND', 'esper': 'Ye Suhua', 'delay': None},
+        {'img': unread_btn, 'name': 'Unread Button',
+            'threshold': DEFAULT_THRESHOLD, 'next': None, 'esper': 'Ye Suhua', 'delay': None}
     ]}
-    # CLICKED_OK = {'name': 'Ok Button',
-    #               'img': ok_btn_img, 'threshold': OK_THRESHOLD}
-    # CLICKED_CONTINUE = {'name': 'Continue Button',
-    #                     'img': continue_btn_img, 'threshold': CONTINUE_THRESHOLD}
-    # CLICKED_RETRY = {'name': 'Retry Button',
-    #                  'img': retry_btn_img, 'threshold': RETRY_THRESHOLD}
-    # CLICKED_SKIP = { 'name': 'Skip Button', 'img': skip_btn_img, 'threshold': SKIP_THRESHOLD }
-    # CLICKED_UPDATE_LIST = { 'name': 'Update List Button', 'img': update_list_btn_img, 'threshold': UPDATE_LIST_THRESHOLD }
+    RIPPLE_DIMENSION_FOUND = {'name': 'RIPPLE_DIMENSION_FOUND', 'buttons': [
+        {'img': go_btn, 'name': 'Go Button', 'threshold': DEFAULT_THRESHOLD,
+            'next': 'CHALLENGE_RIPPLE_DIMENSION', 'delay': None},
+        {'img': leave_btn, 'name': 'Leave Button', 'threshold': DEFAULT_THRESHOLD,
+            'next': 'FIND_RIPPLE_DIMENSION', 'delay': None},
+    ]}
+    CHALLENGE_RIPPLE_DIMENSION = {'name': 'CHALLENGE_RIPPLE_DIMENSION', 'buttons': [
+        {'img': challenge_btn, 'name': 'Challenge Button', 'threshold': DEFAULT_THRESHOLD,
+            'next': 'BATTLE_RIPPLE_DIMENSION', 'delay': None}
+    ]}
+    BATTLE_RIPPLE_DIMENSION = {'name': 'BATTLE_RIPPLE_DIMENSION', 'buttons': [
+        {'img': battle_btn, 'name': 'Battle Button',
+            'threshold': DEFAULT_THRESHOLD, 'next': 'BATTLING', 'delay': None}
+    ]}
+    BATTLING = {'name': 'BATTLING', 'buttons': [
+        {'img': auto_battle_off_btn, 'name': 'Activate Auto',
+            'threshold': AUTO_THRESHOLD, 'next': None, 'delay': None},
+        {'img': retry_btn, 'name': 'Retry Button',
+            'threshold': DEFAULT_THRESHOLD, 'next': None, 'delay': None},
+        {'img': confirm_btn, 'name': 'Confirm Button',
+         'threshold': DEFAULT_THRESHOLD, 'next': 'BACK', 'delay': None}
+    ]}
+    BACK = {'name': 'BACK', 'buttons': [
+        {'img': back_btn, 'name': 'Back Button',
+            'threshold': DEFAULT_THRESHOLD, 'next': 'CHAT', 'delay': 2}
+    ]}
+    # BACK_AGAIN = {'name': 'BACK', 'buttons': [
+    #     {'img': back_btn, 'name': 'Back Button',
+    #      'threshold': DEFAULT_THRESHOLD, 'next': 'CHAT', 'delay': 2}
+    # ]}
+    CHAT = {'name': 'CHAT', 'buttons': [
+        {'img': chat_btn, 'name': 'Chat Button', 'threshold': DEFAULT_THRESHOLD,
+            'next': 'FIND_RIPPLE_DIMENSION', 'delay': None}
+    ]}
 
 
-game_state = GAME_STATES.BOT_STARTED
+game_state = None
+nox_player_img = None
 
 
 # Get Window by name
+
+
 def get_window(window_name):
     global nox_window
     nox_window = win32gui.FindWindow(None, window_name)
@@ -190,10 +226,9 @@ def find_and_click_img(state):
 
     @param state The game state with the image to find and threshold.
     """
-
-    img = state.value['img']
-    threshold = state.value['threshold']
-    button_name = state.value['name']
+    img = state['img']
+    threshold = state['threshold']
+    button_name = state['name']
     _, max_val, _, max_loc = match_image(nox_player_img, img)
 
     print_accuracy_image(max_val, button_name)
@@ -208,7 +243,12 @@ def find_and_click_img(state):
 
 def update_state(state):
     global game_state
-    game_state = state
+
+    if state['delay'] is not None:
+        sleep(state['delay'])
+
+    if state['next'] is not None:
+        game_state = RIPPLE_DIMENSION_STATE[state['next']]
 
 # Print FPS
 
@@ -244,42 +284,35 @@ def print_accuracy_image(accuracy, button_name):
 
 
 def get_nox_player_window_img():
+    global nox_player_img
+
     x, y, w, h = get_window_dimensions(nox_window)
     dimensions = {'left': x, 'top': y, 'width': w, 'height': h}
-    return get_monitor_segment_img(dimensions)
+    nox_player_img = get_monitor_segment_img(dimensions)
+
+
+# Execute actual state automation
+
+
+def execute_state(state):
+    for button in state.value['buttons']:
+        find_and_click_img(button)
+
+# Find Ripple Dimension
+
+
+def automate_ripple_dimension():
+    global game_state
+    game_state = RIPPLE_DIMENSION_STATE.FIND_RIPPLE_DIMENSION
+    while True:
+        print_fps()
+        print_game_state()
+        get_nox_player_window_img()
+
+        execute_state(game_state)
 
 
 # Script Start
 get_window("NoxPlayer")
 
-
-class GAME_STATES_TEST(Enum):
-    BOT_STARTED = None
-    RIPPLE_DIMENSION_DHALIA = {
-        'name': 'Dhalia', 'img': ripple_dimension_dhalia_btn, 'threshold': OK_THRESHOLD}
-    RIPPLE_DIMENSION_DHALIA_CHAT = {
-        'name': 'Dhalia Chat', 'img': ripple_dimension_dhalia_alt_btn, 'threshold': OK_THRESHOLD}
-    RIPPLE_DIMENSION_SUHUA = {
-        'name': 'Ye Suhua', 'img': ripple_dimension_ye_suhua_btn, 'threshold': OK_THRESHOLD}
-    RIPPLE_DIMENSION_SUHUA_CHAT = {
-        'name': 'Ye Suhua Chat', 'img': ripple_dimension_ye_suhua_alt_btn, 'threshold': OK_THRESHOLD}
-    # RETRY_BATTLE = {'name': 'Retry Battle',
-    #                 'img': retry_btn, 'threshold': OK_THRESHOLD}
-    # CONTINUE = {'name': 'Tap to Continue',
-    #             'img': tap_to_continue_btn, 'threshold': OK_THRESHOLD}
-
-
-while True:
-    print_fps()
-    print_game_state()
-
-    nox_player_img = get_nox_player_window_img()
-
-    for state in GAME_STATES_TEST:
-        if state.value is not None:
-            find_and_click_img(state)
-
-    # open_image('Dislyte', nox_player_img)
-
-    # if keyboard.is_pressed('c'):
-    #     break
+automate_ripple_dimension()
