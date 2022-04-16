@@ -37,8 +37,11 @@ confirm_btn = cv2.imread('assets/confirm_btn.png')
 leave_btn = cv2.imread('assets/leave_btn.png')
 retry_btn = cv2.imread('assets/retry_btn.png')
 not_now_btn = cv2.imread('assets/not_now_btn.png')
+tap_to_continue_btn = cv2.imread('assets/tap_to_continue_btn.png')
 ripple_dimension_dhalia_btn = cv2.imread(
     'assets/ripple_dimension_dhalia_btn.png')
+ripple_dimension_dhalia_alt_btn = cv2.imread(
+    'assets/ripple_dimension_dhalia_alt_btn.png')
 ripple_dimension_ye_suhua_btn = cv2.imread(
     'assets/ripple_dimension_ye_suhua_btn.png')
 ripple_dimension_ye_suhua_alt_btn = cv2.imread(
@@ -69,10 +72,7 @@ game_state = GAME_STATES.BOT_STARTED
 # Get Window by name
 def get_window(window_name):
     global nox_window
-    hWnd = win32gui.FindWindow(None, window_name)
-    # The playable Nox window is the third child of the main window
-    nox_window = win32gui.FindWindowEx(hWnd, win32gui.FindWindowEx(
-        hWnd, win32gui.FindWindowEx(hWnd, None, None, None), None, None), None, None)
+    nox_window = win32gui.FindWindow(None, window_name)
 
 # Get window dimensions
 
@@ -253,29 +253,20 @@ def get_nox_player_window_img():
 get_window("NoxPlayer")
 
 
-def callback(hwnd, extra):
-    rect = win32gui.GetWindowRect(hwnd)
-    x = rect[0]
-    y = rect[1]
-    w = rect[2] - x
-    h = rect[3] - y
-    print("Window %s:" % win32gui.GetWindowText(hwnd))
-    print("\tLocation: (%d, %d)" % (x, y))
-    print("\t    Size: (%d, %d)" % (w, h))
-
-
-# win32gui.EnumWindows(callback, None)
-
 class GAME_STATES_TEST(Enum):
     BOT_STARTED = None
     RIPPLE_DIMENSION_DHALIA = {
         'name': 'Dhalia', 'img': ripple_dimension_dhalia_btn, 'threshold': OK_THRESHOLD}
+    RIPPLE_DIMENSION_DHALIA_CHAT = {
+        'name': 'Dhalia Chat', 'img': ripple_dimension_dhalia_alt_btn, 'threshold': OK_THRESHOLD}
     RIPPLE_DIMENSION_SUHUA = {
         'name': 'Ye Suhua', 'img': ripple_dimension_ye_suhua_btn, 'threshold': OK_THRESHOLD}
     RIPPLE_DIMENSION_SUHUA_CHAT = {
         'name': 'Ye Suhua Chat', 'img': ripple_dimension_ye_suhua_alt_btn, 'threshold': OK_THRESHOLD}
-    RETRY_BATTLE = {'name': 'Retry Battle',
-                    'img': retry_btn, 'threshold': OK_THRESHOLD}
+    # RETRY_BATTLE = {'name': 'Retry Battle',
+    #                 'img': retry_btn, 'threshold': OK_THRESHOLD}
+    # CONTINUE = {'name': 'Tap to Continue',
+    #             'img': tap_to_continue_btn, 'threshold': OK_THRESHOLD}
 
 
 while True:
